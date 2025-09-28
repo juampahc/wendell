@@ -1,0 +1,17 @@
+---
+- name: Create nouveau blacklist (if enabled)
+  when: nvidia_blacklist_nouveau
+  become: true
+  ansible.builtin.template:
+    src: blacklist-nouveau.conf.j2
+    dest: /etc/modprobe.d/blacklist-nouveau.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - rebuild initramfs
+    - reboot host
+
+- name: Flush handlers to reboot immediately if changed
+  when: nvidia_blacklist_nouveau
+  ansible.builtin.meta: flush_handlers

@@ -1,0 +1,27 @@
+---
+- name: Install build dependencies
+  become: true
+  ansible.builtin.apt:
+    update_cache: true
+    state: present
+    name:
+      - git
+      - build-essential
+      - cmake
+      - pkg-config
+      - libopenblas-dev
+      - ccache
+      - libcurl4-openssl-dev
+
+- name: Ensure source directory exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ llama_cpp_src_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: GPU preflight | ensure CUDA present (nvcc) when platform=gpu
+  when: llama_cpp_platform == 'gpu'
+  changed_when: false
+  ansible.builtin.command: bash -lc 'nvcc --version'
+

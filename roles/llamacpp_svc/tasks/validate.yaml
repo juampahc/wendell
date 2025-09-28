@@ -1,0 +1,27 @@
+---
+- name: Validate llama-server binary exists
+  when: llama_server_validate_binary | bool
+  become: true
+  ansible.builtin.stat:
+    path: "{{ llama_server_bin }}"
+  register: _bin_stat
+
+- name: Fail if llama-server binary missing
+  when: llama_server_validate_binary | bool
+  ansible.builtin.assert:
+    that: _bin_stat.stat.exists
+    fail_msg: "llama_server_bin not found at {{ llama_server_bin }}"
+
+- name: Validate model path exists
+  when: llama_server_validate_model_path | bool
+  become: true
+  ansible.builtin.stat:
+    path: "{{ llama_server_model }}"
+  register: _model_stat
+
+- name: Warn if model path missing (service may still start later)
+  when: llama_server_validate_model_path | bool and not _model_stat.stat.exists
+  ansible.builtin.debug:
+    msg: >
+      WARNING: Model not found at {{ llama_server_model }}.
+      If you're mounting via s3fs/minio, ensure the mount is active before starting the service.

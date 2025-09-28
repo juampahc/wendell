@@ -1,0 +1,10 @@
+---
+cuda_install_method: repo
+cuda_keyring_version: "1.1-1"         # override if NVIDIA bumps it
+cuda_toolkit_package: "cuda-toolkit-13-0"  # or "cuda-toolkit" for latest
+
+# Map Ubuntu codename -> NVIDIA repo slug
+cuda_repo_slug_map:
+  noble:  "ubuntu2404"
+  jammy:  "ubuntu2204"
+  focal:  "ubuntu2004"

@@ -1,0 +1,39 @@
+---
+- name: Compose base cmake flags
+  ansible.builtin.set_fact:
+    _cmake_base_flags: >-
+      -S {{ llama_cpp_src_dir }}
+      -B {{ llama_cpp_build_dir }}
+      -DCMAKE_BUILD_TYPE=Release
+
+- name: Compose CPU cmake flags
+  when: llama_cpp_platform == 'cpu'
+  ansible.builtin.set_fact:
+    _cmake_flags: >-
+      {{ _cmake_base_flags }}
+      -DGGML_BLAS={{ 'ON' if llama_cpp_use_openblas else 'OFF' }}
+      -DGGML_BLAS_VENDOR={{ llama_cpp_blas_vendor }}
+      {{ (llama_cpp_extra_cmake_flags | join(' ')) if llama_cpp_extra_cmake_flags else '' }}
+
+- name: Compose GPU cmake flags
+  when: llama_cpp_platform == 'gpu'
+  ansible.builtin.set_fact:
+    _cmake_flags: >-
+      {{ _cmake_base_flags }}
+      -DGGML_CUDA=ON
+      {% if llama_cpp_cuda_architectures|length > 0 %}
+      -DCMAKE_CUDA_ARCHITECTURES="{{ llama_cpp_cuda_architectures }}"
+      {% endif %}
+      {{ (llama_cpp_extra_cmake_flags | join(' ')) if llama_cpp_extra_cmake_flags else '' }}
+
+- name: Configure with CMake
+  become: true
+  ansible.builtin.command: >
+    cmake {{ _cmake_flags }}
+  environment:
+    CCACHE_BASEDIR: "{{ llama_cpp_src_dir }}"
+    CCACHE_DIR: "/root/.ccache"
+  args:
+    chdir: "{{ llama_cpp_src_dir }}"
+  register: _cmake_configure
+  changed_when: "'-- Configuring done' in _cmake_configure.stdout or 'Build files have been written' in _cmake_configure.stdout"

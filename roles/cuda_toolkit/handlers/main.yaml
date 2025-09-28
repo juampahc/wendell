@@ -1,0 +1,4 @@
+---
+- name: Reload profile not needed (placeholder)
+  ansible.builtin.debug:
+    msg: "CUDA profile set in /etc/profile.d/cuda.sh"

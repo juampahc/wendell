@@ -1,0 +1,9 @@
+---
+- name: Clone llama.cpp (initial)
+  become: true
+  ansible.builtin.git:
+    repo: "{{ llama_cpp_repo }}"
+    dest: "{{ llama_cpp_src_dir }}"
+    version: "{{ llama_cpp_version }}"
+    update: yes
+    force: yes

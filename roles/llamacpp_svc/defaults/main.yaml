@@ -1,0 +1,30 @@
+---
+# Paths
+llama_server_bin: "/opt/llama.cpp/build/llama-server"  # produced by your build role
+llama_server_workdir: "/opt/llama.cpp/build"           # where models/caches may live
+llama_server_model: "/mnt/model-hub/Qwen2.5-VL-3B-Instruct-GGUF/Qwen2.5-VL-3B-Instruct-Q6_K.gguf"
+
+# Networking
+llama_server_host: "0.0.0.0"
+llama_server_port: 8080
+
+# Extra args (free-form string; no need to re-encode the entire CLI here)
+# Examples: "-c 4096 -ngl 0 --cache-type k-v --log-disable"
+llama_server_extra_args: ""
+
+# Systemd / user
+llama_server_user: "{{ ansible_user | default('ubuntu') }}"
+llama_server_group: "{{ llama_server_user }}"
+llama_server_unit_name: "llama-server.service"
+llama_server_wantedby: "multi-user.target"
+llama_server_restart: "always"
+llama_server_restart_sec: 10
+llama_server_limit_nofile: 65535     # tweak if you serve many connections
+
+# Service state
+llama_server_enable: true
+llama_server_state: "started"
+
+# Validation
+llama_server_validate_binary: true
+llama_server_validate_model_path: true

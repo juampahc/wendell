@@ -1,0 +1,136 @@
+---
+# 0) Remove any conflicting old packages (harmless if none)
+- name: Remove old docker sources (list & deb822)
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/apt/sources.list.d/docker.list
+    - /etc/apt/sources.list.d/docker.sources
+    - /etc/apt/keyrings/docker.gpg
+
+- name: Remove legacy Docker packages that can conflict
+  ansible.builtin.apt:
+    name:
+      - docker
+      - docker-engine
+      - docker.io
+      - containerd
+      - runc
+    state: absent
+    purge: true
+  register: _old_removed
+  changed_when: _old_removed is changed
+
+- name: apt-get update after cleanup
+  ansible.builtin.apt:
+    update_cache: true
+    force_apt_get: true
+
+# 1) Base deps + refresh cache
+- name: Ensure base packages and refresh apt
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+    state: present
+    update_cache: true
+    force_apt_get: true
+
+# 2) Keyring dir
+- name: Create Docker keyring dir
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+# 3) Fetch Docker GPG key (ASCII) and dearmor -> required for "signed-by="
+- name: Download Docker apt GPG key (ASCII)
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: "0644"
+
+- name: Convert Docker GPG key to binary keyring
+  ansible.builtin.command:
+    cmd: gpg --dearmor -o /etc/apt/keyrings/docker.gpg /etc/apt/keyrings/docker.asc
+  args:
+    creates: /etc/apt/keyrings/docker.gpg
+
+- name: Ensure keyring is world-readable (apt requires this)
+  ansible.builtin.file:
+    path: /etc/apt/keyrings/docker.gpg
+    mode: "0644"
+
+# 4) Determine arch and codename robustly
+- name: Determine APT architecture
+  ansible.builtin.command: dpkg --print-architecture
+  register: _apt_arch
+  changed_when: false
+
+- name: Determine Ubuntu codename from /etc/os-release
+  ansible.builtin.shell: '. /etc/os-release && echo "$VERSION_CODENAME"'
+  args:
+    executable: /bin/bash
+  register: _codename_osrelease
+  changed_when: false
+
+- name: Set arch/codename facts
+  ansible.builtin.set_fact:
+    docker_arch: "{{ _apt_arch.stdout | trim }}"
+    ubuntu_codename: >-
+      {{ (_codename_osrelease.stdout | trim) | default(ansible_lsb.codename, true) }}
+
+# 5) Add Docker repo using signed-by and the resolved codename/arch
+- name: Add Docker apt repository
+  ansible.builtin.apt_repository:
+    repo: >-
+      deb [arch={{ docker_arch }} signed-by=/etc/apt/keyrings/docker.gpg]
+      https://download.docker.com/linux/ubuntu {{ ubuntu_codename }} stable
+    filename: docker
+    state: present
+
+# 6) Refresh apt cache AFTER adding the repo
+- name: Update apt cache to pick up Docker repo
+  ansible.builtin.apt:
+    update_cache: true
+    force_apt_get: true
+
+# 7) Install Docker Engine & Compose v2
+- name: Install Docker Engine and Compose v2
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: "{{ docker_package_state }}"
+    force_apt_get: true
+
+# 8) Enable/start service
+- name: Ensure Docker is enabled and running
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+
+# 9) Add users to docker group (if any)
+- name: Add users to docker group
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: docker
+    append: true
+  loop: "{{ docker_users | default([]) }}"
+  when: (docker_users | default([])) | length > 0
+  notify: restart docker
+
+# (Optional) quick diagnostics you can enable temporarily
+# - name: Show docker apt entries
+#   ansible.builtin.shell: "grep -R docker /etc/apt/sources.list* /etc/apt/sources.list.d/* || true"
+#   register: _grep_docker
+#   changed_when: false
+# - ansible.builtin.debug:
+#     var: _grep_docker.stdout

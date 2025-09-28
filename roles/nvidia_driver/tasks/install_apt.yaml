@@ -1,0 +1,43 @@
+---
+- name: Check existing NVIDIA driver version
+  changed_when: false
+  failed_when: false
+  ansible.builtin.command: nvidia-smi --query-gpu=driver_version --format=csv,noheader
+  register: nvidia_smi_version
+
+- name: Skip if desired driver already present
+  ansible.builtin.meta: end_host
+  when:
+    - nvidia_smi_version.rc == 0
+    - nvidia_smi_version.stdout is match('^' ~ nvidia_driver_version ~ '.*')
+
+- name: Install build/deps
+  become: true
+  ansible.builtin.apt:
+    update_cache: true
+    name:
+      - dkms
+      - build-essential
+      - "linux-headers-{{ ansible_kernel }}"
+      - libglvnd-dev
+      - pkg-config
+    state: present
+
+- name: Install NVIDIA driver (apt, default/server/headless)
+  become: true
+  vars:
+    pkg_default: "nvidia-driver-{{ nvidia_driver_version }}"
+    pkg_server: "nvidia-driver-{{ nvidia_driver_version }}-server"
+  ansible.builtin.apt:
+    update_cache: true
+    name: >-
+      {{
+        (nvidia_driver_flavor == 'headless') |
+        ternary(
+          ['nvidia-headless-' ~ nvidia_driver_version,
+           'nvidia-utils-' ~ nvidia_driver_version],
+          (nvidia_driver_flavor == 'server') |
+          ternary(pkg_server, pkg_default)
+        )
+      }}
+    state: present

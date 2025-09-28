@@ -1,0 +1,16 @@
+[Unit]
+Description=Llama.cpp server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ llama_server_user }}
+Group={{ llama_server_group }}
+WorkingDirectory={{ llama_server_workdir }}
+ExecStart={{ llama_server_bin }} -m {{ llama_server_model }} --host {{ llama_server_host }} --port {{ llama_server_port }} {{ llama_server_extra_args }}
+Restart={{ llama_server_restart }}
+RestartSec={{ llama_server_restart_sec }}
+
+[Install]
+WantedBy={{ llama_server_wantedby }}

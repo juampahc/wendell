@@ -1,0 +1,22 @@
+---
+- name: Assert platform is valid
+  ansible.builtin.assert:
+    that:
+      - llama_cpp_platform in ['cpu', 'gpu']
+    fail_msg: "llama_cpp_platform must be 'cpu' or 'gpu'"
+
+- name: Include prepare
+  ansible.builtin.import_tasks: prepare.yaml
+
+- name: Include clone
+  ansible.builtin.import_tasks: clone.yaml
+
+- name: Include configure
+  ansible.builtin.import_tasks: configure.yaml
+
+- name: Include build
+  ansible.builtin.import_tasks: build.yaml
+
+- name: Include validate
+  when: llama_cpp_validate | bool
+  ansible.builtin.import_tasks: validate.yaml

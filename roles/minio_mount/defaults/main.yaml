@@ -1,0 +1,29 @@
+---
+# Connection / endpoint
+minio_host: "192.168.1.62"
+minio_port: 9000
+minio_use_https: false            # set true if your MinIO API is behind TLS
+minio_bucket: "model-hub"
+
+# Auth (use Ansible Vault or env-injection in CI)
+minio_access_key: ""
+minio_secret_key: ""
+
+# Mount settings
+minio_mountpoint: "/mnt/model-hub"
+
+# Persistency
+minio_persist_in_fstab: true      # if true, create an fstab entry
+minio_fstab_nofail: true          # add 'nofail' to avoid blocking boot
+
+# Extra s3fs options (advanced)
+# - uid/gid to control ownership when mounted
+# - mp_umask/file_umask/dir_umask for permissions on the mount
+# - parallel_count, multipart_size, etc., for tuning
+s3fs_extra_options: ""            # e.g. "uid=1000,gid=1000,mp_umask=0022"
+
+# Where to store credentials for s3fs
+s3fs_passwd_file: "/etc/passwd-s3fs"
+
+# Whether to enable 'user_allow_other' in /etc/fuse.conf (recommended for allow_other)
+enable_user_allow_other: true

@@ -1,0 +1,11 @@
+---
+- name: Determine parallel jobs
+  ansible.builtin.set_fact:
+    _build_jobs: "{{ (ansible_facts.processor_vcpus | default(ansible_facts['processor_vcpus']) | default(2)) }}"
+
+- name: Build llama.cpp
+  become: true
+  ansible.builtin.command: >
+    cmake --build {{ llama_cpp_build_dir }} -j {{ _build_jobs }}
+  args:
+    chdir: "{{ llama_cpp_src_dir }}"

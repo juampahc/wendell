@@ -1,0 +1,13 @@
+# NVIDIA DRIVER ROLE -------------
+nvidia_install_method: "apt"          # or "runfile"
+
+# APT method
+nvidia_driver_version: "575"          # choose the exact series you want
+nvidia_driver_flavor: "headless"      # "default" | "server" | "headless"
+
+# RUNFILE method (if you prefer the .run exact build)
+# nvidia_install_method: "runfile"
+# nvidia_runfile_url: "https://us.download.nvidia.com/XFree86/Linux-x86_64/580.82.07/NVIDIA-Linux-x86_64-580.82.07.run"
+
+# NVIDIA CUDA ROLE  --------------
+cuda_toolkit_package: "cuda-toolkit-12-9"   # or "cuda-toolkit" for latest

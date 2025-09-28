@@ -1,0 +1,54 @@
+# --------------- NVIDIA DRIVER ROLE -------------
+nvidia_install_method: "apt"          # or "runfile"
+
+# APT method
+nvidia_driver_version: "575"          # choose the exact series you want
+nvidia_driver_flavor: "headless"      # "default" | "server" | "headless"
+
+# RUNFILE method (if you prefer the .run exact build)
+# nvidia_install_method: "runfile"
+# nvidia_runfile_url: "https://us.download.nvidia.com/XFree86/Linux-x86_64/580.82.07/NVIDIA-Linux-x86_64-580.82.07.run"
+
+# --------------- NVIDIA CUDA ROLE  --------------
+cuda_toolkit_package: "cuda-toolkit-12-9"   # or "cuda-toolkit" for latest
+
+# --------------- MINIO MOUNTED ROLE -----------
+minio_host: "192.168.1.62"
+minio_port: 9000
+minio_use_https: false
+
+minio_bucket: "model-hub"
+minio_mountpoint: "/mnt/model-hub"
+
+# Store these with Ansible Vault in real setups
+minio_access_key: "juan"
+minio_secret_key: "madrid2025"
+
+minio_persist_in_fstab: true
+minio_fstab_nofail: true
+s3fs_extra_options: "uid=1000,gid=1000,mp_umask=0022"
+
+# --------------- LLAMA CPP BUILD ROLE WITH GPU ---------------
+llama_cpp_platform: "gpu"
+llama_cpp_version: "b6381"
+llama_cpp_cuda_architectures: "61"
+llama_cpp_validate: true
+
+llama_cpp_src_dir: "/home/jp/llama.cpp"
+
+# --------------- LLAMACPP SERVICE ROLE ---------------
+llama_server_bin: "/home/jp/llama.cpp/build/bin/llama-server"
+llama_server_workdir: "/home/jp/llama.cpp/build/bin"
+llama_server_model: "/mnt/model-hub/Qwen3-1.7B-Q4_K_M.gguf"
+llama_server_host: "0.0.0.0"
+llama_server_port: 8080
+
+# One free-form string for any extra args you want to tweak
+llama_server_extra_args: "-c 4096 -ngl 0"
+
+# Service behavior
+llama_server_enable: true
+llama_server_state: started
+
+# Optional: if model is mounted later by minio_mount, don't fail the play
+llama_server_validate_model_path: false

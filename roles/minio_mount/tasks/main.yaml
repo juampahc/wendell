@@ -1,0 +1,90 @@
+---
+- name: Update apt cache
+  become: true
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Install s3fs
+  become: true
+  ansible.builtin.apt:
+    name: s3fs
+    state: present
+
+- name: Ensure user_allow_other is enabled in /etc/fuse.conf (for allow_other)
+  when: enable_user_allow_other
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/fuse.conf
+    regexp: '^\s*#?\s*user_allow_other\s*$'
+    line: 'user_allow_other'
+    state: present
+    create: true
+    mode: "0644"
+
+- name: Create mountpoint
+  become: true
+  ansible.builtin.file:
+    path: "{{ minio_mountpoint }}"
+    state: directory
+    mode: "0755"
+
+# Write credentials in "ACCESS:SECRET" format
+- name: Write s3fs credentials (0600)
+  become: true
+  no_log: true
+  ansible.builtin.copy:
+    dest: "{{ s3fs_passwd_file }}"
+    content: "{{ minio_access_key }}:{{ minio_secret_key }}\n"
+    owner: root
+    group: root
+    mode: "0600"
+
+# ---- FIX: split facts so we don't self-reference in the same set_fact ----
+- name: Compose S3FS URL
+  ansible.builtin.set_fact:
+    _s3fs_url: "{{ (minio_use_https | bool) | ternary('https','http') }}://{{ minio_host }}:{{ minio_port }}"
+
+# Build endpoint URL and common s3fs options
+- name: Compose s3fs options
+  ansible.builtin.set_fact:
+    _s3fs_opts_base: >-
+      passwd_file={{ s3fs_passwd_file }},
+      url={{ _s3fs_url }},
+      use_path_request_style,
+      allow_other{{ (',' + s3fs_extra_options) if (s3fs_extra_options | length > 0) else '' }}
+
+# Mount NOW (transient). Using the mount module ensures idempotence and also writes to fstab if state=mounted with fstype=fuse.
+# We do a two-step: first mount=mounted without fstab persistence; then optionally add an fstab line.
+- name: Mount MinIO bucket (runtime mount)
+  become: true
+  ansible.posix.mount:
+    src: "s3fs#{{ minio_bucket }}"
+    path: "{{ minio_mountpoint }}"
+    fstype: fuse
+    opts: "{{ _s3fs_opts_base | replace(' ', '') }}"
+    state: mounted
+
+# Optionally add to fstab (persistent)
+- name: Ensure fstab entry (persistent mount)
+  when: minio_persist_in_fstab
+  become: true
+  ansible.posix.mount:
+    src: "s3fs#{{ minio_bucket }}"
+    path: "{{ minio_mountpoint }}"
+    fstype: fuse
+    opts: >-
+      {{ _s3fs_opts_base | replace(' ', '') }}
+      {{ ',_netdev' }}
+      {{ ',nofail' if minio_fstab_nofail else '' }}
+    state: present
+
+# If we just created an fstab line and the mount isn't active (rare), mount it.
+- name: Ensure mounted when fstab present
+  when: minio_persist_in_fstab
+  become: true
+  ansible.posix.mount:
+    src: "s3fs#{{ minio_bucket }}"
+    path: "{{ minio_mountpoint }}"
+    fstype: fuse
+    opts: "{{ _s3fs_opts_base | replace(' ', '') }}"
+    state: mounted

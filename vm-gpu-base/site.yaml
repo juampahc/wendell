@@ -1,0 +1,24 @@
+---
+- name: GPU Inference Node bootstrap
+  hosts: gpu_host
+  become: true
+  gather_facts: true
+  serial: 1
+
+  pre_tasks:
+    - name: Install NVIDIA driver (blacklist + driver + reboot sequencing)
+      import_role:
+        name: ../roles/nvidia_driver
+
+  tasks:
+    - name: Install CUDA toolkit
+      import_role:
+        name: ../roles/cuda_toolkit
+
+    - name: Verify nvidia-smi after driver install
+      changed_when: false
+      ansible.builtin.command: nvidia-smi
+
+    - name: Verify CUDA is on PATH for new shells
+      changed_when: false
+      ansible.builtin.command: bash -lc 'nvcc --version'

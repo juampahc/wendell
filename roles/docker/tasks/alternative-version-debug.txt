@@ -1,0 +1,116 @@
+# 0) Clean up any bad leftovers from previous attempts
+- name: Remove old docker sources (list & deb822)
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/apt/sources.list.d/docker.list
+    - /etc/apt/sources.list.d/docker.sources
+    - /etc/apt/keyrings/docker.gpg
+
+- name: apt-get update after cleanup
+  ansible.builtin.apt:
+    update_cache: true
+    force_apt_get: true
+
+# 1) Ensure base tools
+- name: Ensure prerequisite packages
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - lsb-release
+    state: present
+    update_cache: true
+    force_apt_get: true
+
+# 2) Detect arch + codename
+- name: Read dpkg architecture
+  ansible.builtin.command: dpkg --print-architecture
+  register: dpkg_arch
+  changed_when: false
+
+- name: Detect Ubuntu codename
+  ansible.builtin.shell: ". /etc/os-release && printf %s \"$VERSION_CODENAME\""
+  register: ub_codename
+  changed_when: false
+
+- name: Set base facts
+  ansible.builtin.set_fact:
+    apt_arch: "{{ dpkg_arch.stdout | trim }}"
+    ubuntu_suite_detected: "{{ ub_codename.stdout | trim }}"
+    docker_channel: "{{ docker_apt_repo_channel | default('stable') }}"
+    docker_pkg_state: "{{ docker_package_state | default('present') }}"
+    docker_users: "{{ docker_users | default([]) }}"
+
+# 3) Check if Docker publishes this suite; if not, fall back to jammy
+- name: Probe Docker repo for detected suite
+  ansible.builtin.shell: "curl -fsI https://download.docker.com/linux/ubuntu/dists/{{ ubuntu_suite_detected }}/Release >/dev/null"
+  register: probe_suite
+  changed_when: false
+  failed_when: false
+
+- name: Decide suite (detected or jammy fallback)
+  ansible.builtin.set_fact:
+    ubuntu_suite: "{{ ubuntu_suite_detected if probe_suite.rc == 0 else 'jammy' }}"
+
+# 4) Add repo with deb822 (auto-downloads & installs the key)
+- name: Add Docker APT repo (deb822)
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: [deb]
+    uris: https://download.docker.com/linux/ubuntu
+    suites: "{{ ubuntu_suite }}"
+    components: ["{{ docker_channel }}"]
+    architectures: ["{{ apt_arch }}"]
+    signed_by: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+
+# 5) Update cache and show what apt sees
+- name: Update apt cache after adding Docker repo
+  ansible.builtin.apt:
+    update_cache: true
+    force_apt_get: true
+
+- name: Show selected suite + arch (debug)
+  ansible.builtin.debug:
+    msg:
+      - "Using Docker repo suite: {{ ubuntu_suite }} (detected: {{ ubuntu_suite_detected }})"
+      - "APT arch: {{ apt_arch }}"
+      - "Channel: {{ docker_channel }}"
+
+- name: apt policy docker-ce (force run even in check mode)
+  ansible.builtin.shell: "apt-cache policy docker-ce || true"
+  register: docker_policy
+  changed_when: false
+  check_mode: no
+
+- name: Print apt policy
+  ansible.builtin.debug:
+    var: docker_policy.stdout
+
+# 6) Install Docker
+- name: Install Docker Engine & plugins
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: "{{ docker_pkg_state }}"
+    force_apt_get: true
+
+- name: Ensure Docker is enabled and running
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Add users to docker group
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: docker
+    append: true
+  loop: "{{ docker_users }}"
+  when: docker_users | length > 0

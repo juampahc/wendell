@@ -1,0 +1,26 @@
+---
+- name: Check expected binaries exist
+  become: true
+  ansible.builtin.stat:
+    path: "{{ llama_cpp_build_dir }}/llama-cli"
+  register: _cli_bin
+
+- name: Fallback check for alt binary location (cmake generators may differ)
+  become: true
+  ansible.builtin.stat:
+    path: "{{ llama_cpp_build_dir }}/bin/llama-cli"
+  register: _cli_bin_alt
+
+- name: Fail if no llama-cli found
+  ansible.builtin.assert:
+    that:
+      - _cli_bin.stat.exists or _cli_bin_alt.stat.exists
+    fail_msg: "llama-cli was not produced where expected."
+
+- name: Run llama-cli -h (no model download, smoke-test only)
+  become: true
+  ansible.builtin.command: >
+    {{ (_cli_bin.stat.exists | ternary(_cli_bin.stat.path, _cli_bin_alt.stat.path)) }} -h
+  args:
+    chdir: "{{ llama_cpp_build_dir }}"
+  changed_when: false

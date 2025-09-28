@@ -1,0 +1,11 @@
+---
+- name: Blacklist nouveau and reboot if needed
+  ansible.builtin.import_tasks: blacklist_nouveau.yaml
+
+- name: Install NVIDIA driver (apt)
+  when: nvidia_install_method == "apt"
+  ansible.builtin.import_tasks: install_apt.yaml
+
+- name: Install NVIDIA driver (runfile)
+  when: nvidia_install_method == "runfile"
+  ansible.builtin.import_tasks: install_runfile.yaml

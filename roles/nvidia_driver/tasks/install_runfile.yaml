@@ -1,0 +1,42 @@
+---
+- name: Ensure runfile URL provided
+  ansible.builtin.assert:
+    that:
+      - nvidia_runfile_url | length > 0
+    fail_msg: "nvidia_runfile_url must be set for runfile install."
+
+- name: Check existing NVIDIA driver version
+  changed_when: false
+  failed_when: false
+  ansible.builtin.command: nvidia-smi --query-gpu=driver_version --format=csv,noheader
+  register: nvidia_smi_version
+
+- name: Skip if driver already present (runfile path)
+  ansible.builtin.meta: end_host
+  when: nvidia_smi_version.rc == 0
+
+- name: Install build/deps for runfile
+  become: true
+  ansible.builtin.apt:
+    update_cache: true
+    name:
+      - dkms
+      - build-essential
+      - "linux-headers-{{ ansible_kernel }}"
+      - libglvnd-dev
+      - pkg-config
+    state: present
+
+- name: Download NVIDIA runfile
+  become: true
+  ansible.builtin.get_url:
+    url: "{{ nvidia_runfile_url }}"
+    dest: /opt/NVIDIA.run
+    mode: "0755"
+    checksum: "{{ nvidia_runfile_checksum | default(omit) }}"
+
+- name: Install NVIDIA driver via runfile (silent)
+  become: true
+  ansible.builtin.command:
+    cmd: /opt/NVIDIA.run --silent --no-questions --accept-license
+    creates: /usr/bin/nvidia-smi

@@ -1,0 +1,3 @@
+docker_package_state: present
+docker_users: []        # users to add to docker group (e.g. ['ubuntu'])
+docker_apt_repo_channel: stable

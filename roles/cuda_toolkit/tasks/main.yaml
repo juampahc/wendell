@@ -1,0 +1,50 @@
+---
+# Derive distro/arch once
+- name: Derive distro/arch slugs
+  ansible.builtin.set_fact:
+    cuda_repo_distro: "{{ (ansible_distribution | lower) ~ (ansible_distribution_version | regex_replace('\\.', '')) }}"
+    cuda_repo_arch_path: >-
+      {{ 'x86_64' if ansible_architecture in ['x86_64','amd64'] else
+         'arm64'  if ansible_architecture in ['aarch64','arm64'] else
+         ansible_architecture }}
+
+# Network repo method only
+- name: Download cuda-keyring package
+  ansible.builtin.get_url:
+    url: "https://developer.download.nvidia.com/compute/cuda/repos/{{ cuda_repo_distro }}/{{ cuda_repo_arch_path }}/cuda-keyring_{{ cuda_keyring_version }}_all.deb"
+    dest: "/tmp/cuda-keyring_{{ cuda_keyring_version }}_all.deb"
+    mode: "0644"
+
+- name: Install cuda-keyring
+  ansible.builtin.apt:
+    deb: "/tmp/cuda-keyring_{{ cuda_keyring_version }}_all.deb"
+
+- name: apt update after enabling NVIDIA CUDA repo
+  ansible.builtin.apt:
+    update_cache: true
+
+# Important: install just the toolkit (NOT the 'cuda' meta-package, which pulls drivers)
+- name: Install CUDA toolkit from network repo
+  ansible.builtin.apt:
+    name: "{{ cuda_toolkit_package }}"
+    state: present
+
+- name: Ensure CUDA "current" symlink exists (points to the newest installed)
+  ansible.builtin.shell: |
+    set -euo pipefail
+    target="$(ls -d /usr/local/cuda-* 2>/dev/null | sort -V | tail -1)"
+    if [ -n "$target" ] && [ ! -e /usr/local/cuda ]; then
+      ln -s "$target" /usr/local/cuda
+    fi
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+- name: Add CUDA to PATH for all users (login shells)
+  ansible.builtin.copy:
+    dest: /etc/profile.d/cuda.sh
+    mode: "0644"
+    content: |
+      # added by Ansible (CUDA)
+      export PATH=/usr/local/cuda/bin:$PATH
+

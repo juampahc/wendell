@@ -1,0 +1,20 @@
+---
+llama_cpp_platform: "cpu"          # cpu | gpu
+llama_cpp_repo: "https://github.com/ggml-org/llama.cpp"
+llama_cpp_version: "HEAD"          # tag/commit/branch
+llama_cpp_src_dir: "/opt/llama.cpp"
+llama_cpp_build_dir: "{{ llama_cpp_src_dir }}/build"
+
+# CPU options
+llama_cpp_use_openblas: true
+llama_cpp_blas_vendor: "OpenBLAS"
+
+# GPU options
+llama_cpp_cuda_architectures: ""   # e.g. "61" or "75;86;89"
+
+# Build system
+llama_cpp_enable_ccache: true
+llama_cpp_extra_cmake_flags: ["-DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc"]    # list of extra flags, if any
+
+# Validation
+llama_cpp_validate: true

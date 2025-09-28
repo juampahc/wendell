@@ -1,0 +1,44 @@
+---
+- name: Include validation steps
+  ansible.builtin.import_tasks: validate.yaml
+
+- name: Ensure group exists (optional)
+  become: true
+  ansible.builtin.group:
+    name: "{{ llama_server_group }}"
+    state: present
+
+- name: Ensure user exists (optional)
+  become: true
+  ansible.builtin.user:
+    name: "{{ llama_server_user }}"
+    group: "{{ llama_server_group }}"
+    shell: /bin/bash
+    state: present
+  when: llama_server_user is not none
+
+- name: Ensure workdir exists
+  become: true
+  ansible.builtin.file:
+    path: "{{ llama_server_workdir }}"
+    state: directory
+    owner: "{{ llama_server_user }}"
+    group: "{{ llama_server_group }}"
+    mode: "0755"
+
+- name: Render systemd unit
+  become: true
+  ansible.builtin.template:
+    src: "llama-server.service.j2"
+    dest: "/etc/systemd/system/{{ llama_server_unit_name }}"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  notify: systemd daemon-reload
+
+- name: Enable service
+  become: true
+  ansible.builtin.systemd:
+    name: "{{ llama_server_unit_name }}"
+    enabled: "{{ llama_server_enable }}"
+    state: "{{ llama_server_state }}"

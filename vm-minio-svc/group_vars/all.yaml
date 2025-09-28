@@ -1,0 +1,9 @@
+minio_data_dir: /srv/minio
+minio_service_user: minio
+minio_service_group: minio
+minio_console_port: 9001
+minio_api_port: 9000
+minio_compose_dir: /opt/minio
+minio_image: "quay.io/minio/minio:latest"
+minio_root_user: "juan"
+minio_root_password: "madrid2025"

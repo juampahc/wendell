@@ -1,0 +1,11 @@
+---
+- name: Rebuild initramfs
+  become: true
+  ansible.builtin.command: update-initramfs -u
+  listen: "rebuild initramfs"
+
+- name: Reboot host
+  become: true
+  ansible.builtin.reboot:
+    reboot_timeout: "{{ nvidia_reboot_timeout }}"
+  listen: "reboot host"

@@ -1,0 +1,15 @@
+---
+nvidia_install_method: "apt"     # "apt" | "runfile"
+
+# For apt method
+nvidia_driver_version: "560"     # e.g. "550", "560", "535"
+nvidia_driver_flavor: "headless"  # "default" | "server" | "headless"
+# For headless flavor we install nvidia-headless-<ver> + nvidia-utils-<ver>
+
+# For runfile method
+nvidia_runfile_url: ""           # e.g. https://us.download.nvidia.com/XFree86/Linux-x86_64/580.82.07/NVIDIA-Linux-x86_64-580.82.07.run
+nvidia_runfile_checksum: ""      # optional sha256
+
+# Common
+nvidia_blacklist_nouveau: true
+nvidia_reboot_timeout: 1800

@@ -1,0 +1,31 @@
+---
+- name: GPU infer node – From the ground
+  hosts: gpu_host
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Install NVIDIA driver (blacklist + driver + reboot sequencing)
+      import_role:
+        name: ../roles/nvidia_driver
+
+  tasks:
+    - name: Install CUDA toolkit
+      import_role:
+        name: ../roles/cuda_toolkit
+
+    - name: Verify nvidia-smi after driver install
+      changed_when: false
+      ansible.builtin.command: nvidia-smi
+    
+    - name: Mount MinIO model-hub
+      import_role:
+        name: ../roles/minio_mount
+
+    - name: Build llama.cpp
+      import_role:
+        name: ../roles/llamacpp_build
+
+    - name: Create llama.cpp server as a service
+      import_role:
+        name: ../roles/llamacpp_svc
